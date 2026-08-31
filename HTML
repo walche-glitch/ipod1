@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>iPod Mini Player</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: "Courier New", Courier, monospace;
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background-color: #121212;
+    }
+
+    /* Carcaça do iPod carregando a imagem direta do Pinterest */
+    .ipod-container {
+      width: 330px;
+      height: 590px;
+      background-image: url('https://i.pinimg.com/736x/d1/36/08/d136084deb231d0a769488c14fd05e4b.jpg');
+      background-size: cover;
+      background-position: center;
+      position: relative;
+      border-radius: 25px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    }
+
+    /* Posicionamento da tela exatamente sobre a imagem */
+    .screen {
+      position: absolute;
+      top: 42px;
+      left: 54px;
+      width: 222px;
+      height: 162px;
+      background-color: #dce5eb;
+      border-radius: 4px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Cabeçalho da Tela */
+    .screen-header {
+      height: 22px;
+      background-color: #b0c4de;
+      border-bottom: 2px solid #8a9ea7;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 6px;
+      font-weight: bold;
+      font-size: 11px;
+      color: #102030;
+    }
+
+    .battery {
+      width: 16px;
+      height: 9px;
+      border: 1px solid #102030;
+      background-color: #2b78e4;
+    }
+
+    /* Lista do Menu */
+    .menu-list {
+      list-style: none;
+      width: 100%;
+    }
+
+    .menu-item {
+      padding: 5px 8px;
+      font-size: 12px;
+      font-weight: bold;
+      color: #000;
+      display: flex;
+      justify-content: space-between;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .menu-item.selected {
+      background-color: #3b5998;
+      color: #fff;
+    }
+
+    .menu-item.selected::after {
+      content: ">";
+    }
+
+    /* Tela Tocando Agora */
+    .now-playing {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      padding: 10px;
+      text-align: center;
+    }
+
+    .now-playing.active {
+      display: flex;
+    }
+
+    .song-title {
+      font-size: 12px;
+      font-weight: bold;
+      color: #102030;
+      margin-bottom: 8px;
+      word-break: break-word;
+    }
+
+    .status-text {
+      font-size: 11px;
+      color: #333;
+    }
+
+    /* Botões Invisíveis Mapeados sobre a imagem */
+    .click-wheel-area {
+      position: absolute;
+      bottom: 35px;
+      left: 36px;
+      width: 258px;
+      height: 258px;
+      border-radius: 50%;
+    }
+
+    .ipod-btn {
+      position: absolute;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      border-radius: 50%;
+    }
+
+    .btn-top {
+      top: 0;
+      left: 79px;
+      width: 100px;
+      height: 55px;
+    }
+
+    .btn-bottom {
+      bottom: 0;
+      left: 79px;
+      width: 100px;
+      height: 55px;
+    }
+
+    .btn-left {
+      top: 79px;
+      left: 0;
+      width: 55px;
+      height: 100px;
+    }
+
+    .btn-right {
+      top: 79px;
+      right: 0;
+      width: 55px;
+      height: 100px;
+    }
+
+    .btn-center {
+      top: 89px;
+      left: 89px;
+      width: 80px;
+      height: 80px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="ipod-container">
+    <div class="screen">
+      <div class="screen-header">
+        <span id="screen-title">iPod mini</span>
+        <div class="battery"></div>
+      </div>
+      
+      <ul class="menu-list" id="menu-list"></ul>
+
+      <div class="now-playing" id="now-playing">
+        <div class="song-title" id="playing-title">---</div>
+        <div class="status-text" id="playing-status">▶ Tocando</div>
+      </div>
+
+      <audio id="audio-player"></audio>
+    </div>
+
+    <div class="click-wheel-area">
+      <button class="ipod-btn btn-top" id="btn-up" title="MENU"></button>
+      <button class="ipod-btn btn-bottom" id="btn-down" title="Play/Pause"></button>
+      <button class="ipod-btn btn-left" id="btn-prev" title="Voltar"></button>
+      <button class="ipod-btn btn-right" id="btn-next" title="Avançar"></button>
+      <button class="ipod-btn btn-center" id="btn-select" title="Confirmar"></button>
+    </div>
+  </div>
+
+  <script>
+    const playlists = [
+      { title: "8 hot girl - After School", src: "8 hot girl - After School.mp3" }
+    ];
+
+    const mainMenuItems = ["Music"];
+
+    let currentScreen = "main";
+    let selectedIndex = 0;
+    let currentTrackIndex = 0;
+
+    const screenTitle = document.getElementById('screen-title');
+    const menuList = document.getElementById('menu-list');
+    const nowPlayingView = document.getElementById('now-playing');
+    const playingTitle = document.getElementById('playing-title');
+    const playingStatus = document.getElementById('playing-status');
+    const player = document.getElementById('audio-player');
+
+    function renderScreen() {
+      menuList.innerHTML = "";
+      nowPlayingView.classList.remove('active');
+      menuList.style.display = "block";
+
+      if (currentScreen === "main") {
+        screenTitle.textContent = "iPod mini";
+        mainMenuItems.forEach((item, index) => {
+          const li = document.createElement('li');
+          li.className = `menu-item ${index === selectedIndex ? 'selected' : ''}`;
+          li.textContent = item;
+          menuList.appendChild(li);
+        });
+      } else if (currentScreen === "music_list") {
+        screenTitle.textContent = "Music";
+        playlists.forEach((track, index) => {
+          const li = document.createElement('li');
+          li.className = `menu-item ${index === selectedIndex ? 'selected' : ''}`;
+          li.textContent = track.title;
+          menuList.appendChild(li);
+        });
+      } else if (currentScreen === "player") {
+        screenTitle.textContent = "Now Playing";
+        menuList.style.display = "none";
+        nowPlayingView.classList.add('active');
+        playingTitle.textContent = playlists[currentTrackIndex].title;
+        playingStatus.textContent = player.paused ? "⏸ Pausado" : "▶ Tocando";
+      }
+    }
+
+    // BOTÃO MENU (CIMA): Sobe item ou volta de tela
+    document.getElementById('btn-up').addEventListener('click', () => {
+      if (currentScreen === "player") {
+        // Se estiver tocando, volta para a lista de músicas
+        currentScreen = "music_list";
+        renderScreen();
+      } else if (currentScreen === "music_list") {
+        if (selectedIndex > 0) {
+          // Se tiver item acima, sobe na lista
+          selectedIndex--;
+          renderScreen();
+        } else {
+          // Se já estiver no topo (primeiro item), volta para a tela inicial
+          currentScreen = "main";
+          selectedIndex = 0;
+          renderScreen();
+        }
+      } else if (currentScreen === "main") {
+        if (selectedIndex > 0) {
+          selectedIndex--;
+          renderScreen();
+        }
+      }
+    });
+
+    // BOTÃO PLAY/PAUSE (BAIXO)
+    document.getElementById('btn-down').addEventListener('click', () => {
+      if (currentScreen === "main") {
+        if (selectedIndex < mainMenuItems.length - 1) {
+          selectedIndex++;
+          renderScreen();
+        }
+      } else if (currentScreen === "music_list") {
+        if (selectedIndex < playlists.length - 1) {
+          selectedIndex++;
+          renderScreen();
+        }
+      } else if (currentScreen === "player") {
+        if (player.paused) { player.play(); } else { player.pause(); }
+        renderScreen();
+      }
+    });
+
+    // BOTÃO SATURNO (CONFIRMAR)
+    document.getElementById('btn-select').addEventListener('click', () => {
+      if (currentScreen === "main") {
+        if (mainMenuItems[selectedIndex] === "Music") {
+          currentScreen = "music_list";
+          selectedIndex = 0;
+          renderScreen();
+        }
+      } else if (currentScreen === "music_list") {
+        currentTrackIndex = selectedIndex;
+        currentScreen = "player";
+        player.src = playlists[currentTrackIndex].src;
+        renderScreen();
+        player.play();
+      }
+    });
+
+    // BOTÃO AVANÇAR
+    document.getElementById('btn-next').addEventListener('click', () => {
+      if (currentScreen === "player") {
+        currentTrackIndex = (currentTrackIndex + 1) % playlists.length;
+        player.src = playlists[currentTrackIndex].src;
+        renderScreen();
+        player.play();
+      }
+    });
+
+    // BOTÃO VOLTAR
+    document.getElementById('btn-prev').addEventListener('click', () => {
+      if (currentScreen === "player") {
+        currentTrackIndex = (currentTrackIndex - 1 + playlists.length) % playlists.length;
+        player.src = playlists[currentTrackIndex].src;
+        renderScreen();
+        player.play();
+      }
+    });
+
+    renderScreen();
+  </script>
+</body>
+</html>
